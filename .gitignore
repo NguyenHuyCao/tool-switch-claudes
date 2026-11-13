@@ -1,0 +1,8 @@
+# Du lieu rieng tren tung may - khong bao gio dua len git
+ui/.token
+ui/.notified.json
+ui/server.log
+ui/server.log.1
+backups/
+*.kc-tmp
+node_modules/

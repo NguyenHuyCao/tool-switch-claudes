@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phiên Claude</title>
+<style>
+:root {
+  --bg: #f6f6f4; --panel: #ffffff; --line: #e4e3df; --text: #1d1d1b; --muted: #6b6a66;
+  --accent: #c2410c; --accent-soft: #fdebe1; --ok: #15803d; --ok-soft: #e3f4e8;
+  --warn: #b45309; --warn-soft: #fdf1dc; --bad: #b91c1c; --bad-soft: #fde5e5;
+  --radius: 10px; --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615; --panel: #1f1f1d; --line: #33322f; --text: #ecebe7; --muted: #9a9993;
+    --accent: #f08a4b; --accent-soft: #3a2518; --ok: #4ade80; --ok-soft: #173222;
+    --warn: #fbbf24; --warn-soft: #3a2e12; --bad: #f87171; --bad-soft: #3b1a1a;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 26px 0 10px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+button, select, input {
+  font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 7px; padding: 6px 10px; min-height: 32px;
+}
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--muted); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.accounts { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.acc-head { display: flex; align-items: center; gap: 8px; }
+.acc-name { font-weight: 600; font-size: 16px; font-family: var(--mono); }
+.acc-mail { margin: 4px 0 10px; word-break: break-all; }
+.badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.b-ok { background: var(--ok-soft); color: var(--ok); }
+.b-warn { background: var(--warn-soft); color: var(--warn); }
+.b-bad { background: var(--bad-soft); color: var(--bad); }
+.b-run { background: var(--accent-soft); color: var(--accent); }
+.b-limit { background: var(--bad); color: #fff; }
+.limits { border-color: var(--bad); background: var(--bad-soft); margin-bottom: 14px; }
+.limits ul { margin: 6px 0 4px; padding-left: 18px; }
+.limits li { margin: 4px 0; }
+.limits a { color: inherit; font-weight: 600; }
+.row.limited { border-color: var(--bad); }
+.add { display: flex; gap: 6px; align-items: center; }
+.add input { width: 90px; }
+
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.toolbar input[type=search] { flex: 1 1 220px; }
+.toolbar label { display: flex; gap: 6px; align-items: center; }
+
+.list { display: flex; flex-direction: column; gap: 8px; }
+.row { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.row.running { border-color: var(--accent); }
+.row-top { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.title { font-weight: 600; font-size: 15px; word-break: break-word; }
+.meta { display: flex; gap: 6px 14px; flex-wrap: wrap; margin-top: 3px; font-size: 12px; color: var(--muted); }
+.meta code { font-family: var(--mono); font-size: 11.5px; }
+.prompt { margin-top: 6px; font-size: 12.5px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 8px;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+.git { font-size: 12px; }
+.empty { text-align: center; padding: 30px; color: var(--muted); }
+
+.help { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 14px; }
+.help summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.help ol { margin: 0 0 12px; padding-left: 20px; }
+.help code { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+
+.b-app { background: var(--line); color: var(--text); }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.moved { border-color: var(--ok); background: var(--ok-soft); margin-bottom: 8px; }
+.moved ol { margin: 6px 0 0; padding-left: 20px; }
+.offline { border-color: var(--bad); background: var(--bad-soft); margin-bottom: 8px; }
+.offline code { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+[hidden] { display: none !important; }
+#toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: min(92vw, 560px);
+         background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 13px;
+         opacity: 0; pointer-events: none; transition: opacity .2s; }
+#toast.show { opacity: 1; }
+#toast.err { background: var(--bad); color: #fff; }
+@media (max-width: 520px) { .row-top { flex-direction: column; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Phiên Claude</h1>
+    <span class="muted small" id="updated">Đang tải…</span>
+  </header>
+
+  <div id="offline" class="card offline" role="alert" hidden>
+    <b>Server quản lý đang tắt.</b> Các nút tạm khoá; trang tự kết nối lại khi server chạy.
+    <div class="small" style="margin-top:6px">Mở terminal và chạy <code>%USERPROFILE%\claude-switch\kc.cmd ui</code>
+      — server sẽ chạy nền, không tắt theo terminal hay app Claude. Muốn tự bật khi mở máy: <code>kc.cmd autostart on</code>.</div>
+    <div class="actions"><button id="copyStart" class="primary">Chép lệnh bật server</button></div>
+  </div>
+
+  <div id="moved" class="card moved" role="status" hidden></div>
+
+  <div id="limits" class="card limits" role="alert" hidden></div>
+
+  <h2>Tài khoản</h2>
+  <div class="accounts" id="accounts"></div>
+
+  <h2>Phiên làm việc</h2>
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Tìm theo tên phiên, thư mục, nhánh…" aria-label="Tìm phiên">
+    <select id="proj" aria-label="Lọc theo dự án"><option value="">Mọi dự án</option></select>
+    <label class="small"><input type="checkbox" id="onlyRun"> Chỉ phiên đang chạy</label>
+    <button id="refresh">Làm mới</button>
+  </div>
+  <div class="list" id="list"></div>
+
+  <h2>Cách chuyển một phiên sang tài khoản khác</h2>
+  <details class="help" open>
+    <summary>Làm tiếp trong app desktop bằng tài khoản còn lượt</summary>
+    <ol>
+      <li>Để phiên đang làm <b>dừng hẳn</b> (chờ xong lượt hoặc hết lượt). Thẻ cam “Đang chạy” phải biến mất; nếu phiên đang mở ở terminal thì đóng cửa sổ đó.</li>
+      <li>Trong app desktop: <b>Log out</b> rồi đăng nhập tài khoản còn lượt (bước này bạn làm tay).</li>
+      <li>Ở đây, chọn tài khoản đó trên phiên cần làm tiếp rồi bấm <b>Chuyển sang app</b>.</li>
+      <li>Bấm <b>Khởi động lại app</b> (hiện ngay sau khi chuyển, hoặc nút ở dưới). Bấm X trên cửa sổ app chỉ ẩn xuống khay, chưa đủ. Mở lại xong, phiên có trong thanh bên, toàn bộ hội thoại còn nguyên. Gõ tiếp như bình thường.</li>
+    </ol>
+    <div class="actions" style="margin-bottom:8px"><button id="restartApp">Khởi động lại app Claude desktop</button></div>
+    <p class="small muted">Phiên tạo ở terminal (thẻ “Chỉ ở terminal”) thì dùng <b>Mở ở terminal</b>. Các tác vụ chạy nền (test…) của phiên cũ không theo sang — nhắn phiên chạy lại. Bản sao file trước mỗi lần chuyển nằm ở <code>%USERPROFILE%\claude-switch\backups</code>.</p>
+  </details>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const TOKEN = "__KC_TOKEN__";
+let state = { profiles: [], sessions: [], kc: '' };
+let chosen = {};          // id -> profile name
+const gitCache = {};
+
+const $ = (s) => document.querySelector(s);
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else if (v === true) n.setAttribute(k, '');
+    else if (v !== false && v != null) n.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) n.append(k.nodeType ? k : String(k));
+  return n;
+}
+
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.className = ''; }, err ? 6000 : 3000);
+}
+
+const OFFLINE_MSG = 'Server quản lý đang tắt — mở terminal và chạy: ' + '%USERPROFILE%\\claude-switch\\kc.cmd ui';
+let offline = false;
+function setOffline(v) {
+  if (offline === v) return;
+  offline = v;
+  $('#offline').hidden = !v;
+  document.querySelectorAll('main button, main select, main input').forEach((n) => {
+    if (n.closest('#offline')) return;
+    if (v) { n.dataset.wasDisabled = n.disabled ? '1' : ''; n.disabled = true; }
+    else n.disabled = n.dataset.wasDisabled === '1';
+  });
+}
+
+async function post(path, body) {
+  let r;
+  try {
+    r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KC-Token': TOKEN }, body: JSON.stringify(body) });
+  } catch {
+    setOffline(true);
+    throw new Error(OFFLINE_MSG);
+  }
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 403 && j.error === 'token') {
+    toast('Trang đã cũ (server vừa khởi động lại) — đang tải lại, bấm lại sau 1 giây', true);
+    setTimeout(() => location.reload(), 1200);
+    throw new Error('Trang đã cũ — đang tải lại');
+  }
+  if (!r.ok) throw new Error(j.error || ('Lỗi ' + r.status));
+  return j;
+}
+
+function ago(ms) {
+  const s = Math.max(0, (Date.now() - ms) / 1000);
+  if (s < 60) return 'vừa xong';
+  if (s < 3600) return Math.floor(s / 60) + ' phút trước';
+  if (s < 86400) return Math.floor(s / 3600) + ' giờ trước';
+  if (s < 86400 * 30) return Math.floor(s / 86400) + ' ngày trước';
+  return new Date(ms).toLocaleDateString('vi-VN');
+}
+function size(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+function shortPath(p) {
+  if (!p) return '(không rõ thư mục)';
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  const wt = parts.indexOf('worktrees');
+  if (wt > 1) return parts[wt - 2] + ' › worktree ' + parts[wt + 1];
+  return parts.slice(-2).join('\\');
+}
+function projectOf(p) {
+  if (!p) return '';
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  const i = parts.indexOf('.claude');
+  return i > 0 ? parts[i - 1] : parts[parts.length - 1];
+}
+const cmdQuote = (s) => '"' + s + '"';
+
+function renderAccounts() {
+  const box = $('#accounts'); box.replaceChildren();
+  for (const p of state.profiles) {
+    const status = p.loggedIn ? el('span', { class: 'badge b-ok' }, 'Đã đăng nhập') : el('span', { class: 'badge b-bad' }, 'Chưa đăng nhập');
+    const shared = p.shared == null ? 'Tài khoản gốc (app desktop)' :
+      (p.shared === 4 ? 'Dùng chung lịch sử + memory' : `Chỉ nối ${p.shared}/4 thư mục — chạy lại "kc setup ${p.name}"`);
+    box.append(el('div', { class: 'card' },
+      el('div', { class: 'acc-head' }, el('span', { class: 'acc-name' }, p.name), status),
+      el('div', { class: 'acc-mail small ' + (p.email ? '' : 'muted') }, p.email || 'chưa rõ email'),
+      el('div', { class: 'small muted' }, shared),
+      el('div', { class: 'actions' },
+        el('button', { onclick: async () => { try { await post('/api/login', { profile: p.name }); toast('Đã mở terminal — gõ /login nếu cần'); } catch (e) { toast(e.message, true); } } },
+          p.loggedIn ? 'Mở terminal / đổi đăng nhập' : 'Đăng nhập'))));
+  }
+  const inp = el('input', { placeholder: 'tên, vd c', 'aria-label': 'Tên hồ sơ mới', maxlength: '20' });
+  box.append(el('div', { class: 'card' },
+    el('div', { class: 'acc-head' }, el('span', { class: 'acc-name' }, '+'), el('span', {}, 'Thêm tài khoản')),
+    el('div', { class: 'small muted', style: 'margin:6px 0 10px' }, 'Tạo hồ sơ mới dùng chung lịch sử, rồi đăng nhập tài khoản khác.'),
+    el('div', { class: 'add' }, inp, el('button', { class: 'primary', onclick: async () => {
+      const name = inp.value.trim().toLowerCase();
+      try { await post('/api/setup', { name }); toast('Đã tạo hồ sơ ' + name); await load(); } catch (e) { toast(e.message, true); }
+    } }, 'Tạo'))));
+}
+
+function renderProjects() {
+  const sel = $('#proj'); const cur = sel.value;
+  const names = [...new Set(state.sessions.map((s) => projectOf(s.cwd)).filter(Boolean))].sort();
+  sel.replaceChildren(el('option', { value: '' }, 'Mọi dự án'), ...names.map((n) => el('option', { value: n }, n)));
+  sel.value = names.includes(cur) ? cur : '';
+}
+
+function renderList() {
+  const q = $('#q').value.trim().toLowerCase();
+  const proj = $('#proj').value;
+  const onlyRun = $('#onlyRun').checked;
+  const logged = state.profiles.filter((p) => p.loggedIn);
+  const rows = state.sessions.filter((s) =>
+    (!onlyRun || s.running) && (!proj || projectOf(s.cwd) === proj) &&
+    (!q || [s.title, s.cwd, s.branch, s.lastPrompt, s.id].some((v) => v && v.toLowerCase().includes(q))));
+
+  const list = $('#list'); list.replaceChildren();
+  if (!rows.length) { list.append(el('div', { class: 'empty card' }, 'Không có phiên nào khớp.')); return; }
+
+  for (const s of rows.slice(0, 150)) {
+    const run = s.running;
+    // Mac dinh: tai khoan app desktop dang dung (thuong la tai khoan con luot).
+    const active = logged.find((p) => p.name === state.desktop?.active);
+    const def = chosen[s.id] || (active || logged.find((p) => p.name !== 'a') || logged[0] || {}).name || 'a';
+    const sel = el('select', { 'aria-label': 'Chọn tài khoản cho phiên ' + s.title, onchange: (e) => { chosen[s.id] = e.target.value; } },
+      ...state.profiles.map((p) => el('option', { value: p.name, disabled: !p.loggedIn, selected: p.name === def },
+        p.name + (p.email ? ' · ' + p.email.split('@')[0] : '') + (p.loggedIn ? '' : ' (chưa đăng nhập)'))));
+    const pick = () => sel.value;
+
+    const runBadge = run
+      ? el('span', { class: 'badge b-run', title: `pid ${run.pid}` }, `Đang chạy · ${run.where} · ${run.status === 'busy' ? 'đang làm' : 'đang chờ'}`)
+      : (s.cwdExists ? el('span', { class: 'badge b-ok' }, 'Đã dừng — mở tiếp được') : el('span', { class: 'badge b-bad' }, 'Thư mục đã bị xoá'));
+    const appBadge = s.desktop
+      ? el('span', { class: 'badge b-app', title: 'Phiên này nằm trong danh sách của app desktop ở tài khoản này' },
+          'Trong app: ' + (s.desktop.owner ? 'tài khoản ' + s.desktop.owner : 'tài khoản khác'))
+      : el('span', { class: 'badge b-warn', title: 'Phiên tạo ở terminal — app desktop không có nó' }, 'Chỉ ở terminal');
+    const limitBadge = s.limit ? el('span', { class: 'badge b-limit', title: s.limit.text || '' }, limitLabel(s.limit)) : null;
+    const statusBadge = el('span', { class: 'badges' }, limitBadge, appBadge, runBadge);
+
+    const gitBox = el('span', { class: 'git muted' }, gitCache[s.id] || '');
+    const resumeCmd = `cd /d ${cmdQuote(s.cwd || '')} && ${cmdQuote(state.kc)} ${def} --resume ${s.id}`;
+    const parkCmd = `cd /d ${cmdQuote(s.cwd || '')} && node scripts/claude/kctx.mjs park ${cmdQuote(s.title.replace(/"/g, ''))} "<bước tiếp theo>"`;
+
+    const copy = async (text, what) => { try { await navigator.clipboard.writeText(text); toast('Đã chép ' + what); } catch { prompt('Chép lệnh:', text); } };
+
+    list.append(el('div', { class: 'row' + (run ? ' running' : '') + (s.limit ? ' limited' : ''), id: 'row-' + s.id },
+      el('div', { class: 'row-top' },
+        el('div', {}, el('div', { class: 'title' }, s.title),
+          el('div', { class: 'meta' },
+            el('span', { title: s.cwd || '' }, shortPath(s.cwd)),
+            s.branch ? el('span', {}, 'nhánh ', el('code', {}, s.branch)) : null,
+            el('span', { title: new Date(s.mtime).toLocaleString('vi-VN') }, ago(s.mtime)),
+            el('span', {}, size(s.size)),
+            el('code', { title: 'Mã phiên' }, s.id.slice(0, 8)))),
+        statusBadge),
+      s.lastPrompt ? el('div', { class: 'prompt', title: s.lastPrompt }, 'Lệnh cuối: ' + s.lastPrompt) : null,
+      el('div', { class: 'actions' },
+        sel,
+        s.desktop ? el('button', { class: 'primary', disabled: !!run || !s.cwdExists,
+          title: run ? 'Phiên đang chạy — dừng nó trước' : 'Đưa phiên này vào app desktop của tài khoản đã chọn',
+          onclick: async () => {
+            try {
+              const r = await post('/api/move', { id: s.id, profile: pick() });
+              await load();
+              showMoved(s, pick(), r);
+            } catch (e) { toast(e.message, true); }
+          } }, 'Chuyển sang app') : null,
+        s.desktop && state.desktop?.running && s.desktop.owner && s.desktop.owner === state.desktop.active
+          ? el('button', { disabled: !!run, title: 'Mở phiên này trong app desktop',
+              onclick: async () => { try { await post('/api/open-app', { id: s.id }); toast('Đã gửi lệnh mở trong app'); } catch (e) { toast(e.message, true); } } }, 'Mở trong app')
+          : null,
+        el('button', { class: s.desktop ? '' : 'primary', disabled: !!run || !s.cwdExists,
+          title: run ? 'Phiên đang chạy — dừng nó trước' : 'Mở lại phiên này trong cửa sổ terminal bằng tài khoản đã chọn',
+          onclick: async () => { try { await post('/api/open', { id: s.id, profile: pick() }); toast('Đã mở cửa sổ terminal (tài khoản ' + pick() + ') — xem thanh tác vụ'); setTimeout(load, 5000); } catch (e) { toast(e.message, true); } } }, 'Mở ở terminal'),
+        el('button', { disabled: !s.cwdExists, title: 'Phiên mới, cùng thư mục',
+          onclick: async () => { try { await post('/api/new', { id: s.id, profile: pick() }); toast('Đã mở phiên mới'); } catch (e) { toast(e.message, true); } } }, 'Phiên mới ở đây'),
+        el('button', { disabled: !s.cwdExists, onclick: async () => {
+          gitBox.textContent = 'đang xem git…';
+          try { const g = await post('/api/git', { id: s.id });
+            gitCache[s.id] = g.ok ? `${g.changed} file chưa commit · ${g.branch}` : 'không phải repo git';
+          } catch (e) { gitCache[s.id] = e.message; }
+          gitBox.textContent = gitCache[s.id];
+        } }, 'Git'),
+        el('button', { disabled: !s.cwdExists, onclick: async () => { try { await post('/api/folder', { id: s.id }); } catch (e) { toast(e.message, true); } } }, 'Thư mục'),
+        el('button', { onclick: () => copy(resumeCmd.replace(` ${def} --resume`, ` ${pick()} --resume`), 'lệnh mở tiếp') }, 'Chép lệnh'),
+        el('button', { disabled: !s.cwdExists, onclick: () => copy(parkCmd, 'lệnh ghi việc dở') }, 'Chép lệnh ghi việc dở'),
+        gitBox)));
+  }
+  if (rows.length > 150) list.append(el('div', { class: 'empty' }, `Còn ${rows.length - 150} phiên cũ hơn — dùng ô tìm kiếm.`));
+}
+
+async function restartApp() {
+  const busy = state.sessions.filter((s) => s.running && s.running.where === 'app desktop');
+  const msg = 'Khởi động lại app Claude desktop?\n\n' +
+    (busy.length ? `Đang có ${busy.length} phiên chạy trong app, sẽ dừng giữa chừng (hội thoại vẫn còn, mở lại gõ tiếp được):\n- ` +
+      busy.map((s) => s.title).join('\n- ') + '\n\n' : '') +
+    'Phiên chạy ở terminal không bị ảnh hưởng.';
+  if (!confirm(msg)) return;
+  try { await post('/api/restart-app', {}); toast('Đang khởi động lại app — đợi khoảng 10 giây'); } catch (e) { toast(e.message, true); }
+}
+
+// Huong dan sau khi chuyen phien: app chi doc danh sach phien khi khoi dong hoac khi doi tai khoan.
+function showMoved(s, profile, r) {
+  const box = $('#moved');
+  const p = state.profiles.find((x) => x.name === profile) || {};
+  const who = `tài khoản ${profile}${p.email ? ' (' + p.email + ')' : ''}`;
+  const steps = r.already
+    ? [el('li', {}, 'Phiên đã thuộc ', el('b', {}, who), ' trong app.')]
+    : r.appOnTarget
+      ? [el('li', {}, 'App đang ở đúng ', el('b', {}, who), ' nhưng chỉ đọc danh sách phiên lúc khởi động: ',
+           el('b', {}, 'thoát hẳn app'), ' (chuột phải biểu tượng Claude ở khay đồng hồ → Quit, hoặc File → Exit) rồi mở lại.'),
+         el('li', {}, 'Phiên “', s.title, '” sẽ có trong thanh bên. Bấm vào và gõ tiếp như bình thường.')]
+      : [el('li', {}, 'Trong app desktop: ', el('b', {}, 'Log out'), ' rồi đăng nhập ', el('b', {}, who), '.'),
+         el('li', {}, 'Phiên “', s.title, '” sẽ có trong thanh bên. Nếu chưa thấy, thoát hẳn app và mở lại.')];
+  box.replaceChildren(
+    el('b', {}, 'Đã chuyển phiên sang ' + who + '.'),
+    el('ol', {}, ...steps),
+    el('div', { class: 'small muted', style: 'margin-top:6px' }, 'Bản sao file cũ nằm trong %USERPROFILE%\\claude-switch\\backups. Không mở cùng phiên ở terminal và app một lúc.'),
+    el('div', { class: 'actions' },
+      (r.appOnTarget || r.already) ? el('button', { class: 'primary', onclick: restartApp }, 'Khởi động lại app ngay') : null,
+      el('button', { onclick: () => { box.hidden = true; } }, 'Đã hiểu')));
+  box.hidden = false;
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function hhmm(ms) { const d = new Date(ms); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function limitLabel(l) {
+  const when = l.resetAt ? 'reset lúc ' + hhmm(l.resetAt) : (l.resetText ? 'reset ' + l.resetText : 'chưa rõ giờ reset');
+  return 'Hết giới hạn' + (l.kind ? ' ' + l.kind : '') + ' · ' + when;
+}
+
+// Dai bao do o dau trang: phien nao vua bi dung vi het gioi han, reset luc nao, nhay toi phien do.
+function renderLimits() {
+  const box = $('#limits');
+  const hit = state.sessions.filter((s) => s.limit).sort((a, b) => b.limit.at - a.limit.at);
+  if (!hit.length) { box.hidden = true; box.replaceChildren(); return; }
+  box.hidden = false;
+  box.replaceChildren(
+    el('b', {}, hit.length === 1 ? 'Một phiên đang dừng vì hết giới hạn dùng' : `${hit.length} phiên đang dừng vì hết giới hạn dùng`),
+    el('ul', {}, ...hit.slice(0, 8).map((s) => el('li', {},
+      el('a', { href: '#row-' + s.id, onclick: (e) => { e.preventDefault(); document.getElementById('row-' + s.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, s.title),
+      ' — ' + limitLabel(s.limit) + ' · báo ' + ago(s.limit.at)))),
+    el('div', { class: 'small' }, 'Chờ đến giờ reset, hoặc bấm vào phiên rồi chọn tài khoản khác và bấm “Mở ở terminal” / “Chuyển sang app”. Chuyển là do bạn quyết định — tool không tự đổi tài khoản.'),
+    el('div', { class: 'actions' }, el('button', { onclick: async () => {
+      try { await post('/api/test-notify', {}); toast('Đã gửi thông báo thử — xem góc phải màn hình'); } catch (e) { toast(e.message, true); }
+    } }, 'Thử thông báo Windows')));
+}
+
+async function load() {
+  let next;
+  try {
+    const r = await fetch('/api/state');
+    if (!r.ok) throw new Error('Lỗi ' + r.status);
+    next = await r.json();
+  } catch (e) {
+    setOffline(true);
+    $('#updated').textContent = 'Mất kết nối server — tự thử lại mỗi 3 giây';
+    return;
+  }
+  const wasOffline = offline;
+  state = next;
+  setOffline(false);
+  renderAccounts(); renderProjects(); renderList(); renderLimits();
+  const n = state.sessions.filter((s) => s.running).length;
+  const d = state.desktop || {};
+  const app = !d.ok ? 'không thấy app desktop' : (d.running ? `app desktop đang mở · tài khoản ${d.active || 'chưa rõ'}` : 'app desktop đang tắt');
+  $('#updated').textContent = `${state.sessions.length} phiên · ${n} đang chạy · ${app} · cập nhật ${new Date().toLocaleTimeString('vi-VN')}`;
+  if (wasOffline) toast('Đã kết nối lại server');
+}
+
+$('#q').addEventListener('input', renderList);
+$('#proj').addEventListener('change', renderList);
+$('#onlyRun').addEventListener('change', renderList);
+$('#refresh').addEventListener('click', load);
+$('#restartApp').addEventListener('click', restartApp);
+$('#copyStart').addEventListener('click', async () => {
+  const c = '%USERPROFILE%\\claude-switch\\kc.cmd ui';
+  try { await navigator.clipboard.writeText(c); toast('Đã chép lệnh — dán vào terminal rồi Enter'); } catch { prompt('Chép lệnh:', c); }
+});
+// Khi mất kết nối: thử lại nhanh (3 giây). Bình thường: 10 giây, không làm mới khi đang chọn / gõ.
+(function tick() {
+  setTimeout(async () => {
+    if (offline || (!document.hidden && !document.activeElement?.matches('select,input'))) await load();
+    tick();
+  }, offline ? 3000 : 10000);
+})();
+load();
+</script>
+</body>
+</html>
